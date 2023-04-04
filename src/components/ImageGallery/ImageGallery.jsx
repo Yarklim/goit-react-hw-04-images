@@ -1,4 +1,5 @@
-import { Component, createRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import Loader from 'components/Loader/Loader';
 import ImageGalleryItem from 'components/ImageGalleryItem/ImageGalleryItem';
 import { getSearchedImagesApi } from '../../services/imagesApi';
@@ -7,118 +8,111 @@ import { Modal } from 'components/Modal/Modal';
 import { Gallery } from './ImageGallery.styled';
 import { LoaderWrapper } from 'components/Loader/Loader.styled';
 
-class ImageGallery extends Component {
-  state = {
-    images: [],
-    page: 1,
-    query: '',
-    largeImg: '',
-    isModalOpen: false,
-    error: null,
-    isLoading: false,
+function ImageGallery(props) {
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const [largeImg, setLargeImg] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const imagesItemRef = useRef(null);
+
+  useEffect(() => {
+    setImages([]);
+    setPage(1);
+    setQuery(props.query);
+  }, [props.query]);
+
+  useEffect(() => {
+    if (query) {
+      async function setImagesFromApi() {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const data = await getSearchedImagesApi(query, page);
+          if (data.hits.length === 0) {
+            setPage(1);
+            window.scrollTo(0, 0);
+            throw new Error(`No images for ${query}`);
+          }
+          setImages(prevImages =>
+            page === 1 ? data.hits : [...prevImages, ...data.hits]
+          );
+        } catch (error) {
+          setError(error.message);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+      setImagesFromApi();
+    }
+  }, [query, page]);
+
+  const changePage = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  imagesItemRef = createRef(null);
+  const toggleModal = () => {
+    setIsModalOpen(prevIsModalOpen => !prevIsModalOpen);
+  };
 
-  static getDerivedStateFromProps(props, state) {
-    if (state.query !== props.query) {
-      return { page: 1, query: props.query };
-    }
+  const showLargeImg = largeImg => {
+    setLargeImg(largeImg);
+  };
+
+  useEffect(() => {
+    imagesItemRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [images]);
+
+  if (!query) {
     return null;
   }
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { images, page, query } = this.state;
-
-    if (
-      (prevProps.query !== query && query !== '') ||
-      (prevState.page !== page && page !== 1)
-    ) {
-      this.setImages();
-    }
-
-    if (prevState.images !== images) {
-      this.imagesItemRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }
-  }
-
-  setImages = async () => {
-    const { page, query } = this.state;
-
-    this.setState({ isLoading: true, error: null });
-    try {
-      const data = await getSearchedImagesApi(query, page);
-      if (data.hits.length === 0) {
-        throw new Error(`No images for ${query}`);
-      }
-      this.setState(prev => ({
-        images: page === 1 ? data.hits : [...prev.images, ...data.hits],
-      }));
-    } catch (error) {
-      this.setState({ error: error.message });
-    } finally {
-      this.setState({ isLoading: false });
-    }
-  };
-
-  changePage = () => {
-    this.setState(prev => ({ page: prev.page + 1 }));
-  };
-
-  toggleModal = () => {
-    this.setState(({ isModalOpen }) => ({
-      isModalOpen: !isModalOpen,
-    }));
-  };
-
-  showLargeImg = largeImg => {
-    this.setState({ largeImg });
-  };
-
-  render() {
-    const { images, error } = this.state;
-    return (
-      <>
-        {error ? (
-          <h2
-            style={{
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              fontSize: '32px',
-              color: 'white',
-            }}
-          >
-            {error}
-          </h2>
-        ) : (
-          <>
-            <Gallery>
-              <ImageGalleryItem
-                images={images}
-                imagesItemRef={this.imagesItemRef}
-                showLargeImg={this.showLargeImg}
-                showModal={this.toggleModal}
-              />
-              {this.state.isModalOpen && (
-                <Modal
-                  closeModal={this.toggleModal}
-                  largeImg={this.state.largeImg}
-                ></Modal>
-              )}
-            </Gallery>
-            {this.state.isLoading && (
-              <LoaderWrapper>
-                <Loader />
-              </LoaderWrapper>
+  return (
+    <>
+      {error ? (
+        <h2
+          style={{
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            fontSize: '32px',
+            color: 'white',
+          }}
+        >
+          {error}
+        </h2>
+      ) : (
+        <>
+          <Gallery>
+            <ImageGalleryItem
+              images={images}
+              imagesItemRef={imagesItemRef}
+              showLargeImg={showLargeImg}
+              showModal={toggleModal}
+            />
+            {isModalOpen && (
+              <Modal closeModal={toggleModal} largeImg={largeImg}></Modal>
             )}
-            {images.length > 0 && <Button onClick={this.changePage} />}
-          </>
-        )}
-      </>
-    );
-  }
+          </Gallery>
+          {isLoading && (
+            <LoaderWrapper>
+              <Loader />
+            </LoaderWrapper>
+          )}
+          {images.length > 0 && <Button onClick={changePage} />}
+        </>
+      )}
+    </>
+  );
 }
+
+ImageGallery.propTypes = {
+  props: PropTypes.string,
+};
+
 export default ImageGallery;
