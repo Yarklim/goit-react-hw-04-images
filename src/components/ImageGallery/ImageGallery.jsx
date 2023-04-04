@@ -16,6 +16,7 @@ function ImageGallery(props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalHits, setTotalHits] = useState(null);
 
   const imagesItemRef = useRef(null);
 
@@ -40,6 +41,7 @@ function ImageGallery(props) {
           setImages(prevImages =>
             page === 1 ? data.hits : [...prevImages, ...data.hits]
           );
+          setTotalHits(data.totalHits);
         } catch (error) {
           setError(error.message);
         } finally {
@@ -104,7 +106,9 @@ function ImageGallery(props) {
               <Loader />
             </LoaderWrapper>
           )}
-          {images.length > 0 && <Button onClick={changePage} />}
+          {images.length > 0 && images.length < totalHits ? (
+            <Button onClick={changePage} />
+          ) : null}
         </>
       )}
     </>
