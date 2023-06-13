@@ -26,7 +26,7 @@ export const Modal = ({ closeModal, largeImg }) => {
   return createPortal(
     <Backdrop onClick={handleBackdropClick}>
       <ModalContent closeModal={closeModal}>
-        <ModalImage src={largeImg} alt="img" onClick={closeModal} />
+        <ModalImage src={largeImg} alt="img" />
       </ModalContent>
     </Backdrop>,
     modalRoot
